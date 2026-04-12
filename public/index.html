@@ -41,19 +41,23 @@
         <span id="selectionText">0개 선택 / 전체 0개</span>
       </div>
 
-      <!-- 기간 필터 -->
+      <!-- 기간/개수 필터 -->
       <div class="period-filter">
-        <span class="period-label">기간:</span>
         <div class="period-buttons">
           <button class="period-btn" data-period="1w" onclick="selectByPeriod('1w')">1주</button>
           <button class="period-btn" data-period="2w" onclick="selectByPeriod('2w')">2주</button>
           <button class="period-btn" data-period="3w" onclick="selectByPeriod('3w')">3주</button>
-          <button class="period-btn" data-period="1m" onclick="selectByPeriod('1m')">1달</button>
-          <button class="period-btn active" data-period="2m" onclick="selectByPeriod('2m')">2달</button>
-          <button class="period-btn" data-period="3m" onclick="selectByPeriod('3m')">3달</button>
-          <button class="period-btn" data-period="4m" onclick="selectByPeriod('4m')">4달</button>
-          <button class="period-btn" data-period="5m" onclick="selectByPeriod('5m')">5달</button>
+          <button class="period-btn" data-period="1m" onclick="selectByPeriod('1m')">1개월</button>
+          <button class="period-btn active" data-period="2m" onclick="selectByPeriod('2m')">2개월</button>
+          <button class="period-btn" data-period="3m" onclick="selectByPeriod('3m')">3개월</button>
+          <button class="period-btn" data-period="4m" onclick="selectByPeriod('4m')">4개월</button>
+          <button class="period-btn" data-period="5m" onclick="selectByPeriod('5m')">5개월</button>
           <button class="period-btn" data-period="6m" onclick="selectByPeriod('6m')">6개월</button>
+          <span class="period-sep"></span>
+          <button class="period-btn" data-period="10n" onclick="selectByCount(10)">10개</button>
+          <button class="period-btn" data-period="20n" onclick="selectByCount(20)">20개</button>
+          <button class="period-btn" data-period="30n" onclick="selectByCount(30)">30개</button>
+          <button class="period-btn" data-period="40n" onclick="selectByCount(40)">40개</button>
         </div>
       </div>
 

@@ -286,23 +286,23 @@ footer {
   color: #1a7f3f;
 }
 
-/* 기간 필터 */
+/* 기간/개수 필터 */
 .period-filter {
   margin-bottom: 14px;
-}
-
-.period-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #888;
-  margin-bottom: 8px;
 }
 
 .period-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
+  align-items: center;
+}
+
+.period-sep {
+  width: 1px;
+  height: 18px;
+  background: #ddd;
+  margin: 0 3px;
 }
 
 .period-btn {

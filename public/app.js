@@ -264,6 +264,32 @@ function selectByPeriod(period) {
   updateDownloadButton();
 }
 
+function selectByCount(count) {
+  // 기간 버튼 활성 상태 갱신
+  document.querySelectorAll('.period-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.period === count + 'n');
+  });
+
+  // 최신순으로 정렬된 postData 기준, 상위 N개만 선택
+  const sortedPosts = [...postData].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const topLogNos = new Set(sortedPosts.slice(0, count).map(p => String(p.logNo)));
+
+  document.querySelectorAll('.post-checkbox').forEach(cb => {
+    cb.checked = topLogNos.has(cb.dataset.logno);
+  });
+
+  // 월별 체크박스 동기화
+  const monthKeys = new Set();
+  document.querySelectorAll('.month-checkbox').forEach(cb => {
+    monthKeys.add(cb.dataset.month);
+  });
+  for (const monthKey of monthKeys) {
+    syncMonthCheckbox(monthKey);
+  }
+
+  updateDownloadButton();
+}
+
 function syncMonthCheckbox(monthKey) {
   const postCbs = document.querySelectorAll(`.post-checkbox[data-month="${monthKey}"]`);
   const total = postCbs.length;
