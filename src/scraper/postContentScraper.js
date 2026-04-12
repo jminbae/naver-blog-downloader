@@ -1,26 +1,27 @@
 const cheerio = require('cheerio');
 const { httpClient, sleep } = require('../utils/httpClient');
 
-// 이미지 URL에서 type 파라미터를 제거하여 원본 크기로 요청
-function upgradeToOriginal(url) {
+// 이미지 URL의 type 파라미터를 w966으로 업그레이드 (큰 이미지 요청)
+// 네이버 CDN은 type 제거 시 작은 썸네일을 반환하므로, 반드시 w966 지정
+function upgradeToLarge(url) {
   try {
     const parsed = new URL(url);
 
-    // dthumb 프록시 URL인 경우: src 파라미터 안의 실제 URL도 처리
+    // dthumb 프록시 URL인 경우: 실제 URL을 추출하고 w966 적용
     if (parsed.hostname === 'dthumb-phinf.pstatic.net' && parsed.searchParams.has('src')) {
       let realUrl = parsed.searchParams.get('src').replace(/^"|"$/g, '');
       try {
         const realParsed = new URL(realUrl);
-        realParsed.searchParams.delete('type');
+        realParsed.searchParams.set('type', 'w966');
         return realParsed.toString();
       } catch {
         return url;
       }
     }
 
-    // 일반 pstatic.net 이미지: type 파라미터 제거
-    if (parsed.searchParams.has('type')) {
-      parsed.searchParams.delete('type');
+    // 일반 pstatic.net 이미지: type을 w966으로 설정
+    if (parsed.hostname.includes('pstatic.net') || parsed.hostname.includes('blogfiles')) {
+      parsed.searchParams.set('type', 'w966');
       return parsed.toString();
     }
   } catch {}
@@ -78,8 +79,8 @@ async function scrapePost(blogId, logNo) {
       $content(el).attr('data-src') ||
       $content(el).attr('src');
     if (src && (src.includes('pstatic.net') || src.includes('blogfiles'))) {
-      // 원본 크기 URL로 변환 (type 파라미터 제거)
-      const fullSrc = upgradeToOriginal(src);
+      // 큰 이미지 URL로 변환 (type=w966)
+      const fullSrc = upgradeToLarge(src);
       // 중복 제거
       if (!images.includes(fullSrc)) {
         images.push(fullSrc);
