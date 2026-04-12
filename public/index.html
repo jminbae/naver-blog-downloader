@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>네이버 블로그 다운로더</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>네이버 블로그 다운로더</h1>
+      <p class="subtitle">최근 3개월 글을 마크다운 + 이미지로 다운로드</p>
+    </header>
+
+    <!-- 입력 섹션 -->
+    <section id="inputSection" class="card">
+      <label for="blogUrl">블로그 URL</label>
+      <div class="input-row">
+        <input
+          type="text"
+          id="blogUrl"
+          placeholder="https://blog.naver.com/blogname"
+          autocomplete="off"
+        />
+        <button id="startBtn" onclick="startScraping()">다운로드 시작</button>
+      </div>
+      <p id="errorMsg" class="error" style="display:none"></p>
+    </section>
+
+    <!-- 진행 상태 섹션 -->
+    <section id="progressSection" class="card" style="display:none">
+      <h2>진행 상태</h2>
+      <div class="status-row">
+        <span id="statusIcon" class="status-icon">⏳</span>
+        <span id="statusText">준비 중...</span>
+      </div>
+      <div class="progress-bar-container">
+        <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+      </div>
+      <p id="progressDetail" class="detail"></p>
+      <p id="currentPost" class="current-post"></p>
+    </section>
+
+    <!-- 결과 섹션 -->
+    <section id="resultSection" class="card" style="display:none">
+      <h2>완료!</h2>
+      <div id="resultSummary" class="summary"></div>
+      <a id="downloadLink" class="download-btn" href="#">ZIP 파일 다운로드</a>
+      <div id="errorList" style="display:none">
+        <h3>오류 목록</h3>
+        <ul id="errorItems"></ul>
+      </div>
+    </section>
+
+    <footer>
+      <p>팀 공유: 이 앱을 Render/Railway에 배포하면 URL만 공유하면 됩니다.</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

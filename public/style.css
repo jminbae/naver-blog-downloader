@@ -1,0 +1,220 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', 'Noto Sans KR', -apple-system, sans-serif;
+  background: #f0f2f5;
+  color: #333;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 40px 16px;
+}
+
+.container {
+  max-width: 580px;
+  width: 100%;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+header h1 {
+  font-size: 24px;
+  color: #03c75a;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #888;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.card h2 {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: #555;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+input[type="text"] {
+  flex: 1;
+  padding: 10px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input[type="text"]:focus {
+  border-color: #03c75a;
+}
+
+button, .download-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  white-space: nowrap;
+}
+
+button {
+  background: #03c75a;
+  color: #fff;
+}
+
+button:hover {
+  background: #02b050;
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.download-btn {
+  display: inline-block;
+  background: #03c75a;
+  color: #fff;
+  text-decoration: none;
+  text-align: center;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.download-btn:hover {
+  background: #02b050;
+}
+
+.error {
+  color: #e74c3c;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.status-icon {
+  font-size: 20px;
+}
+
+#statusText {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background: #e8e8e8;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: #03c75a;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.progress-bar.indeterminate {
+  width: 30% !important;
+  animation: indeterminate 1.5s infinite ease-in-out;
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.progress-bar.error {
+  background: #e74c3c;
+}
+
+.detail {
+  font-size: 13px;
+  color: #888;
+}
+
+.current-post {
+  font-size: 13px;
+  color: #555;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.summary {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+#errorList {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+#errorList h3 {
+  font-size: 14px;
+  color: #e74c3c;
+  margin-bottom: 8px;
+}
+
+#errorItems {
+  list-style: none;
+  font-size: 13px;
+  color: #888;
+}
+
+#errorItems li {
+  padding: 4px 0;
+}
+
+footer {
+  text-align: center;
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 8px;
+}
