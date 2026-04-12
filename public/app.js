@@ -22,10 +22,11 @@ async function startScraping() {
   startBtn.textContent = '처리 중...';
 
   try {
+    const period = document.getElementById('periodSelect').value;
     const res = await fetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ url, period }),
     });
 
     const data = await res.json();

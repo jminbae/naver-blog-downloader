@@ -27,7 +27,8 @@ async function createZip(sourceDir, outputPath) {
     });
 
     archive.pipe(output);
-    archive.directory(sourceDir, path.basename(sourceDir));
+    // ZIP 루트에 바로 파일 배치 (폴더 래핑 없음)
+    archive.directory(sourceDir, false);
     archive.finalize();
   });
 }

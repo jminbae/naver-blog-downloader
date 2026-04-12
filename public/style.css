@@ -76,6 +76,21 @@ input[type="text"]:focus {
   border-color: #03c75a;
 }
 
+select {
+  padding: 10px 8px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+  background: #fff;
+  cursor: pointer;
+  min-width: 75px;
+}
+
+select:focus {
+  border-color: #03c75a;
+}
+
 button, .download-btn {
   padding: 10px 20px;
   border: none;

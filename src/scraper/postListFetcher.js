@@ -10,10 +10,21 @@ function parseNaverDate(dateStr) {
   return new Date(dateStr);
 }
 
-async function fetchPostList(blogId, monthsBack = 3) {
+// period: "1w", "2w", "3w", "1m", "2m", ... "6m"
+async function fetchPostList(blogId, period = '3m') {
   const cutoffDate = new Date();
-  cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack);
   cutoffDate.setHours(0, 0, 0, 0);
+  const match = period.match(/^(\d+)(w|m)$/);
+  if (match) {
+    const num = parseInt(match[1]);
+    if (match[2] === 'w') {
+      cutoffDate.setDate(cutoffDate.getDate() - num * 7);
+    } else {
+      cutoffDate.setMonth(cutoffDate.getMonth() - num);
+    }
+  } else {
+    cutoffDate.setMonth(cutoffDate.getMonth() - 3);
+  }
 
   const allPosts = [];
   let currentPage = 1;

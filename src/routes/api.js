@@ -14,11 +14,11 @@ const { sleep } = require('../utils/httpClient');
 const { createJob, updateJob, getJob } = require('../jobManager');
 
 // 스크래핑 파이프라인
-async function runScrapingPipeline(jobId, blogId) {
+async function runScrapingPipeline(jobId, blogId, period) {
   try {
     // 1. 글 목록 조회
     updateJob(jobId, { status: 'fetching_list' });
-    const posts = await fetchPostList(blogId, 3);
+    const posts = await fetchPostList(blogId, period);
     updateJob(jobId, { totalPosts: posts.length });
 
     if (posts.length === 0) {
@@ -84,7 +84,7 @@ async function runScrapingPipeline(jobId, blogId) {
 
     // 4. ZIP 생성 (다운로드 폴더에)
     updateJob(jobId, { status: 'zipping', processedPosts: posts.length });
-    const zipFilename = `${blogId}_blog_backup.zip`;
+    const zipFilename = `${blogId}.zip`;
     const zipPath = path.join(downloadsDir, zipFilename);
     await createZip(blogDir, zipPath);
 
@@ -109,16 +109,17 @@ async function runScrapingPipeline(jobId, blogId) {
 // POST /api/scrape - 스크래핑 시작
 router.post('/scrape', (req, res) => {
   try {
-    const { url } = req.body;
+    const { url, period } = req.body;
     if (!url) {
       return res.status(400).json({ error: '블로그 URL을 입력해주세요.' });
     }
 
     const blogId = extractBlogId(url);
+    const validPeriod = /^\d+(w|m)$/.test(period) ? period : '3m';
     const jobId = createJob(blogId);
 
     // 비동기로 파이프라인 실행 (응답은 즉시 반환)
-    runScrapingPipeline(jobId, blogId);
+    runScrapingPipeline(jobId, blogId, validPeriod);
 
     res.json({ jobId, blogId });
   } catch (err) {
