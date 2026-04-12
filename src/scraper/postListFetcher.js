@@ -1,7 +1,25 @@
 const { httpClient, sleep } = require('../utils/httpClient');
 
 function parseNaverDate(dateStr) {
-  // "2026. 4. 10." 또는 "2026.04.10." 또는 "2026-04-10" 형식
+  // 1) 상대 시간 형식: "방금", "N분 전", "N시간 전", "N일 전"
+  if (dateStr.includes('전') || dateStr === '방금') {
+    const now = new Date();
+    const minuteMatch = dateStr.match(/(\d+)\s*분/);
+    const hourMatch = dateStr.match(/(\d+)\s*시간/);
+    const dayMatch = dateStr.match(/(\d+)\s*일/);
+
+    if (dayMatch) {
+      now.setDate(now.getDate() - parseInt(dayMatch[1]));
+    } else if (hourMatch) {
+      now.setHours(now.getHours() - parseInt(hourMatch[1]));
+    } else if (minuteMatch) {
+      now.setMinutes(now.getMinutes() - parseInt(minuteMatch[1]));
+    }
+    // 시분초 제거 → 날짜만 유지
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+
+  // 2) 절대 날짜: "2026. 4. 10." 또는 "2026.04.10." 또는 "2026-04-10"
   const cleaned = dateStr.replace(/\./g, '-').replace(/\s/g, '').replace(/-$/, '');
   const parts = cleaned.split('-').filter(Boolean);
   if (parts.length >= 3) {
