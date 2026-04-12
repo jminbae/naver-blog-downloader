@@ -168,7 +168,7 @@ function convertToHtml(title, dateStr, contentHtml, blogId, logNo) {
   .meta { color: #888; font-size: 14px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
   .meta a { color: #03c75a; }
   h1 { font-size: 24px; margin-bottom: 8px; }
-  img { max-width: 100%; height: auto !important; border-radius: 4px; margin: 8px 0; display: block; }
+  img { width: 100% !important; height: auto !important; border-radius: 4px; margin: 8px 0; display: block; }
   .content * { max-width: 100%; box-sizing: border-box; }
   .content .se-image, .content .se-imageStrip, .content .se-module-image { width: 100% !important; }
 </style>
