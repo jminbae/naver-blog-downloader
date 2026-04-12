@@ -23,10 +23,11 @@ async function startScraping() {
 
   try {
     const period = document.getElementById('periodSelect').value;
+    const format = document.getElementById('formatSelect').value;
     const res = await fetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, period }),
+      body: JSON.stringify({ url, period, format }),
     });
 
     const data = await res.json();

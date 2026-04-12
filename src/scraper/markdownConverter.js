@@ -121,4 +121,67 @@ source: "https://blog.naver.com/${blogId}/${logNo}"
   return frontmatter + markdown;
 }
 
-module.exports = { convertToMarkdown };
+function convertToHtml(title, dateStr, contentHtml, blogId, logNo) {
+  const safeTitle = (title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${safeTitle}</title>
+<style>
+  body { font-family: 'Noto Sans KR', -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; line-height: 1.8; }
+  .meta { color: #888; font-size: 14px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
+  .meta a { color: #03c75a; }
+  h1 { font-size: 24px; margin-bottom: 8px; }
+  img { max-width: 100%; height: auto; border-radius: 4px; margin: 8px 0; }
+</style>
+</head>
+<body>
+<h1>${safeTitle}</h1>
+<div class="meta">${dateStr} | <a href="https://blog.naver.com/${blogId}/${logNo}">원본 글</a></div>
+<div class="content">
+${contentHtml || ''}
+</div>
+</body>
+</html>`;
+}
+
+function convertToText(title, dateStr, contentHtml, blogId, logNo) {
+  // HTML 태그 제거 → 순수 텍스트
+  let text = (contentHtml || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+
+  // 연속 빈 줄 정리
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
+
+  const header = `제목: ${title}
+날짜: ${dateStr}
+원본: https://blog.naver.com/${blogId}/${logNo}
+${'='.repeat(50)}
+
+`;
+
+  return header + text;
+}
+
+function convertContent(format, title, dateStr, contentHtml, blogId, logNo) {
+  switch (format) {
+    case 'html': return convertToHtml(title, dateStr, contentHtml, blogId, logNo);
+    case 'txt':  return convertToText(title, dateStr, contentHtml, blogId, logNo);
+    default:     return convertToMarkdown(title, dateStr, contentHtml, blogId, logNo);
+  }
+}
+
+module.exports = { convertToMarkdown, convertContent };

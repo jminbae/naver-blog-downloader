@@ -10,7 +10,7 @@
   <div class="container">
     <header>
       <h1>네이버 블로그 다운로더</h1>
-      <p class="subtitle">블로그 글을 마크다운 + 이미지로 다운로드</p>
+      <p class="subtitle">블로그 글을 HTML / Markdown / Text로 다운로드</p>
     </header>
 
     <!-- 입력 섹션 -->
@@ -23,7 +23,7 @@
           placeholder="https://blog.naver.com/blogname"
           autocomplete="off"
         />
-        <select id="periodSelect">
+        <select id="periodSelect" title="기간">
           <option value="1w">1주</option>
           <option value="2w">2주</option>
           <option value="3w">3주</option>
@@ -33,6 +33,11 @@
           <option value="4m">4개월</option>
           <option value="5m">5개월</option>
           <option value="6m">6개월</option>
+        </select>
+        <select id="formatSelect" title="형식">
+          <option value="html" selected>HTML</option>
+          <option value="md">Markdown</option>
+          <option value="txt">Text</option>
         </select>
         <button id="startBtn" onclick="startScraping()">다운로드 시작</button>
       </div>

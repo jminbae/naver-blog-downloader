@@ -6,7 +6,7 @@ const router = express.Router();
 const { extractBlogId } = require('../scraper/blogIdExtractor');
 const { fetchPostList } = require('../scraper/postListFetcher');
 const { scrapePost } = require('../scraper/postContentScraper');
-const { convertToMarkdown } = require('../scraper/markdownConverter');
+const { convertContent } = require('../scraper/markdownConverter');
 const { downloadImages } = require('../scraper/imageDownloader');
 const { createZip } = require('../utils/zipBuilder');
 const { sanitizeFilename, formatDate, getDownloadsDir, isServerMode } = require('../utils/fileUtils');
@@ -14,7 +14,7 @@ const { sleep } = require('../utils/httpClient');
 const { createJob, updateJob, getJob } = require('../jobManager');
 
 // 스크래핑 파이프라인
-async function runScrapingPipeline(jobId, blogId, period) {
+async function runScrapingPipeline(jobId, blogId, period, format) {
   try {
     // 1. 글 목록 조회
     updateJob(jobId, { status: 'fetching_list' });
@@ -50,10 +50,11 @@ async function runScrapingPipeline(jobId, blogId, period) {
         // 3a. 글 내용 가져오기
         const scraped = await scrapePost(blogId, post.logNo);
 
-        // 3b. 마크다운 변환
+        // 3b. 콘텐츠 변환
         const postTitle = scraped.title || post.title;
         const dateStr = formatDate(post.date);
-        let markdown = convertToMarkdown(
+        let content = convertContent(
+          format,
           postTitle,
           post.date.toISOString().split('T')[0],
           scraped.contentHtml,
@@ -61,12 +62,15 @@ async function runScrapingPipeline(jobId, blogId, period) {
           post.logNo
         );
 
-        // 3c. 이미지 다운로드 (공용 images 폴더에 원본 파일명으로, 스마트 중복 처리)
-        markdown = await downloadImages(scraped.images, imagesDir, markdown, imageHashMap);
+        // 3c. 이미지 다운로드 (txt 형식이면 스킵)
+        if (format !== 'txt') {
+          content = await downloadImages(scraped.images, imagesDir, content, imageHashMap);
+        }
 
-        // 3d. 마크다운 파일 저장 (블로그 폴더에 바로, YYMMDD_제목.md)
-        const mdFilename = `${dateStr}_${sanitizeFilename(postTitle)}.md`;
-        fs.writeFileSync(path.join(blogDir, mdFilename), markdown, 'utf-8');
+        // 3d. 파일 저장
+        const ext = format === 'html' ? '.html' : format === 'txt' ? '.txt' : '.md';
+        const outFilename = `${dateStr}_${sanitizeFilename(postTitle)}${ext}`;
+        fs.writeFileSync(path.join(blogDir, outFilename), content, 'utf-8');
       } catch (postError) {
         console.error(`[글 에러] ${post.title}:`, postError.message);
         const job = getJob(jobId);
@@ -109,17 +113,18 @@ async function runScrapingPipeline(jobId, blogId, period) {
 // POST /api/scrape - 스크래핑 시작
 router.post('/scrape', (req, res) => {
   try {
-    const { url, period } = req.body;
+    const { url, period, format } = req.body;
     if (!url) {
       return res.status(400).json({ error: '블로그 URL을 입력해주세요.' });
     }
 
     const blogId = extractBlogId(url);
     const validPeriod = /^\d+(w|m)$/.test(period) ? period : '3m';
+    const validFormat = ['html', 'md', 'txt'].includes(format) ? format : 'html';
     const jobId = createJob(blogId);
 
     // 비동기로 파이프라인 실행 (응답은 즉시 반환)
-    runScrapingPipeline(jobId, blogId, validPeriod);
+    runScrapingPipeline(jobId, blogId, validPeriod, validFormat);
 
     res.json({ jobId, blogId });
   } catch (err) {
