@@ -1,6 +1,32 @@
 const cheerio = require('cheerio');
 const { httpClient, sleep } = require('../utils/httpClient');
 
+// 이미지 URL에서 type 파라미터를 제거하여 원본 크기로 요청
+function upgradeToOriginal(url) {
+  try {
+    const parsed = new URL(url);
+
+    // dthumb 프록시 URL인 경우: src 파라미터 안의 실제 URL도 처리
+    if (parsed.hostname === 'dthumb-phinf.pstatic.net' && parsed.searchParams.has('src')) {
+      let realUrl = parsed.searchParams.get('src').replace(/^"|"$/g, '');
+      try {
+        const realParsed = new URL(realUrl);
+        realParsed.searchParams.delete('type');
+        return realParsed.toString();
+      } catch {
+        return url;
+      }
+    }
+
+    // 일반 pstatic.net 이미지: type 파라미터 제거
+    if (parsed.searchParams.has('type')) {
+      parsed.searchParams.delete('type');
+      return parsed.toString();
+    }
+  } catch {}
+  return url;
+}
+
 async function scrapePost(blogId, logNo) {
   // 모바일 버전 사용 (iframe 회피)
   const url = `https://m.blog.naver.com/${blogId}/${logNo}`;
@@ -52,9 +78,15 @@ async function scrapePost(blogId, logNo) {
       $content(el).attr('data-src') ||
       $content(el).attr('src');
     if (src && (src.includes('pstatic.net') || src.includes('blogfiles'))) {
+      // 원본 크기 URL로 변환 (type 파라미터 제거)
+      const fullSrc = upgradeToOriginal(src);
       // 중복 제거
-      if (!images.includes(src)) {
-        images.push(src);
+      if (!images.includes(fullSrc)) {
+        images.push(fullSrc);
+      }
+      // contentHtml에서도 URL 교체 (나중에 이미지 경로 매칭용)
+      if (fullSrc !== src) {
+        contentHtml = contentHtml.split(src).join(fullSrc);
       }
     }
   });

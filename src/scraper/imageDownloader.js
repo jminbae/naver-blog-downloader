@@ -21,44 +21,54 @@ function isProxyUrl(url) {
 }
 
 // 프록시/직접 URL에 대해 다운로드 시도할 URL 목록 생성
+// 우선순위: 원본(type 없음) → w966 → 원본 URL 그대로
 function buildDownloadCandidates(originalUrl) {
   const candidates = [];
 
   if (isProxyUrl(originalUrl)) {
     const realUrl = resolveProxyUrl(originalUrl);
 
-    // 1. 실제 URL에서 type 파라미터를 w966으로
+    // 1. 실제 URL에서 type 파라미터 제거 (원본 크기)
     try {
       const parsed = new URL(realUrl);
-      if (parsed.searchParams.has('type')) {
-        parsed.searchParams.set('type', 'w966');
-      }
+      parsed.searchParams.delete('type');
       candidates.push(parsed.toString());
     } catch {}
 
-    // 2. 실제 URL 그대로
+    // 2. type=w966 (원본 실패 시 fallback)
+    try {
+      const parsed = new URL(realUrl);
+      parsed.searchParams.set('type', 'w966');
+      candidates.push(parsed.toString());
+    } catch {}
+
+    // 3. 실제 URL 그대로
     candidates.push(realUrl);
 
-    // 3. blogthumb → mblogthumb-phinf 호스트 변환 시도
+    // 4. blogthumb → mblogthumb-phinf 호스트 변환 시도
     if (realUrl.includes('blogthumb.pstatic.net')) {
       const converted = realUrl.replace('blogthumb.pstatic.net', 'mblogthumb-phinf.pstatic.net');
       try {
         const parsed = new URL(converted);
-        if (parsed.searchParams.has('type')) {
-          parsed.searchParams.set('type', 'w966');
-        }
+        parsed.searchParams.delete('type');
         candidates.push(parsed.toString());
       } catch {}
       candidates.push(converted);
     }
 
-    // 4. 프록시 URL 그대로 (원본 썸네일이라도 받기)
+    // 5. 프록시 URL 그대로 (최후 수단)
     candidates.push(originalUrl);
   } else {
-    // 직접 URL: type 업그레이드 → 원본
+    // 직접 URL: 원본(type 제거) → w966 → 원본 URL 그대로
     try {
       const parsed = new URL(originalUrl);
       if (parsed.searchParams.has('type')) {
+        // type 제거 (원본 크기)
+        const noType = new URL(originalUrl);
+        noType.searchParams.delete('type');
+        candidates.push(noType.toString());
+
+        // w966 fallback
         parsed.searchParams.set('type', 'w966');
         candidates.push(parsed.toString());
       }
