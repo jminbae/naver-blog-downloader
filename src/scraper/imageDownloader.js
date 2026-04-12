@@ -76,9 +76,20 @@ function extractOriginalFilename(url) {
     const segments = parsed.pathname.split('/').filter(Boolean);
     let filename = segments[segments.length - 1];
 
+    // URL 인코딩 디코딩 (%ED%9E%90 → 힐 등)
+    // 브라우저가 HTML src의 %XX를 자동 디코딩하므로 파일명도 디코딩해야 매칭됨
+    try {
+      filename = decodeURIComponent(filename);
+    } catch {
+      // 디코딩 실패 시 원본 유지
+    }
+
     if (!path.extname(filename)) {
       filename += '.jpg';
     }
+
+    // 파일시스템에서 사용 불가한 문자 치환
+    filename = filename.replace(/[<>:"/\\|?*]/g, '_');
 
     // 파일명이 너무 짧거나 일반적이면(image.jpg 등) 상위 경로를 접두사로 추가
     const genericNames = ['image', 'img', 'photo', 'thumb', 'thumbnail', 'picture', 'pic'];
@@ -86,13 +97,19 @@ function extractOriginalFilename(url) {
     if (genericNames.includes(baseName.toLowerCase()) && segments.length >= 2) {
       // 상위 세그먼트의 앞 8자를 접두사로 사용 (고유성 확보)
       const parent = segments[segments.length - 2];
-      const prefix = parent.substring(0, 12).replace(/[^a-zA-Z0-9_-]/g, '_');
-      filename = `${prefix}_${filename}`;
+      try {
+        const decodedParent = decodeURIComponent(parent);
+        const prefix = decodedParent.substring(0, 12).replace(/[<>:"/\\|?*]/g, '_');
+        filename = `${prefix}_${filename}`;
+      } catch {
+        const prefix = parent.substring(0, 12).replace(/[^a-zA-Z0-9_-]/g, '_');
+        filename = `${prefix}_${filename}`;
+      }
     }
 
-    if (filename.length > 150) {
+    if (filename.length > 80) {
       const ext = path.extname(filename);
-      filename = filename.substring(0, 150 - ext.length) + ext;
+      filename = filename.substring(0, 80 - ext.length) + ext;
     }
 
     return filename;
