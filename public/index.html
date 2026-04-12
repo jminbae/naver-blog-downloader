@@ -23,25 +23,39 @@
           placeholder="https://blog.naver.com/blogname"
           autocomplete="off"
         />
-        <select id="periodSelect" title="기간">
-          <option value="1w">1주</option>
-          <option value="2w">2주</option>
-          <option value="3w">3주</option>
-          <option value="1m">1개월</option>
-          <option value="2m">2개월</option>
-          <option value="3m" selected>3개월</option>
-          <option value="4m">4개월</option>
-          <option value="5m">5개월</option>
-          <option value="6m">6개월</option>
-        </select>
+        <button id="fetchBtn" onclick="fetchPostList()">글 목록 가져오기</button>
+      </div>
+      <p id="errorMsg" class="error" style="display:none"></p>
+    </section>
+
+    <!-- 글 목록 섹션 -->
+    <section id="postListSection" class="card" style="display:none">
+      <div class="post-list-header">
+        <h2>글 목록</h2>
+        <span id="postCount" class="post-count"></span>
+      </div>
+
+      <div class="post-list-toolbar">
+        <div class="toolbar-left">
+          <button class="btn-sm" onclick="selectAll()">전체 선택</button>
+          <button class="btn-sm btn-outline" onclick="deselectAll()">전체 해제</button>
+        </div>
         <select id="formatSelect" title="형식">
           <option value="html" selected>HTML</option>
           <option value="md">Markdown</option>
           <option value="txt">Text</option>
         </select>
-        <button id="startBtn" onclick="startScraping()">다운로드 시작</button>
       </div>
-      <p id="errorMsg" class="error" style="display:none"></p>
+
+      <div id="monthGroups" class="month-groups">
+        <!-- JavaScript로 동적 생성 -->
+      </div>
+
+      <div class="post-list-footer">
+        <button id="downloadBtn" onclick="startDownload()" disabled>
+          선택한 글 다운로드 (0개)
+        </button>
+      </div>
     </section>
 
     <!-- 진행 상태 섹션 -->

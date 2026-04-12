@@ -13,13 +13,11 @@ const { sanitizeFilename, formatDate, getDownloadsDir, isServerMode } = require(
 const { sleep } = require('../utils/httpClient');
 const { createJob, updateJob, getJob } = require('../jobManager');
 
-// 스크래핑 파이프라인
-async function runScrapingPipeline(jobId, blogId, period, format) {
+// 스크래핑 파이프라인 (선택된 글만 처리)
+async function runScrapingPipeline(jobId, blogId, posts, format) {
   try {
-    // 1. 글 목록 조회
-    updateJob(jobId, { status: 'fetching_list' });
-    const posts = await fetchPostList(blogId, period);
-    updateJob(jobId, { totalPosts: posts.length });
+    // 글 목록은 이미 전달받음 (fetch-list에서 조회 완료)
+    updateJob(jobId, { status: 'scraping', totalPosts: posts.length });
 
     if (posts.length === 0) {
       updateJob(jobId, { status: 'done', totalPosts: 0 });
@@ -32,9 +30,6 @@ async function runScrapingPipeline(jobId, blogId, period, format) {
     const imagesDir = path.join(blogDir, 'images');
     fs.mkdirSync(blogDir, { recursive: true });
     fs.mkdirSync(imagesDir, { recursive: true });
-
-    // 3. 각 글 스크래핑
-    updateJob(jobId, { status: 'scraping' });
 
     // 이미지 중복 추적 맵 (파일명 → [{hash, savedName}])
     const imageHashMap = {};
@@ -110,21 +105,54 @@ async function runScrapingPipeline(jobId, blogId, period, format) {
   }
 }
 
-// POST /api/scrape - 스크래핑 시작
-router.post('/scrape', (req, res) => {
+// POST /api/fetch-list - 글 목록 조회 (다운로드 없음)
+router.post('/fetch-list', async (req, res) => {
   try {
-    const { url, period, format } = req.body;
+    const { url } = req.body;
     if (!url) {
       return res.status(400).json({ error: '블로그 URL을 입력해주세요.' });
     }
 
     const blogId = extractBlogId(url);
-    const validPeriod = /^\d+(w|m)$/.test(period) ? period : '3m';
+    const posts = await fetchPostList(blogId, '6m');
+
+    // 날짜를 ISO 문자열로 변환하여 JSON 직렬화
+    const serializedPosts = posts.map(p => ({
+      logNo: p.logNo,
+      title: p.title,
+      date: p.date.toISOString(),
+    }));
+
+    res.json({ blogId, posts: serializedPosts });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// POST /api/scrape - 선택된 글 스크래핑 시작
+router.post('/scrape', (req, res) => {
+  try {
+    const { url, format, posts } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: '블로그 URL을 입력해주세요.' });
+    }
+    if (!posts || !Array.isArray(posts) || posts.length === 0) {
+      return res.status(400).json({ error: '다운로드할 글을 선택해주세요.' });
+    }
+
+    const blogId = extractBlogId(url);
     const validFormat = ['html', 'md', 'txt'].includes(format) ? format : 'html';
     const jobId = createJob(blogId);
 
+    // posts 배열의 date 문자열을 Date 객체로 복원
+    const parsedPosts = posts.map(p => ({
+      logNo: p.logNo,
+      title: p.title,
+      date: new Date(p.date),
+    }));
+
     // 비동기로 파이프라인 실행 (응답은 즉시 반환)
-    runScrapingPipeline(jobId, blogId, validPeriod, validFormat);
+    runScrapingPipeline(jobId, blogId, parsedPosts, validFormat);
 
     res.json({ jobId, blogId });
   } catch (err) {
