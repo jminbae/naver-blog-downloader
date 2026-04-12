@@ -48,6 +48,8 @@ async function fetchPostList() {
 
     renderPostList();
     document.getElementById('postListSection').style.display = 'block';
+    // 디폴트: 최근 2개월 선택
+    selectByPeriod('2m');
     resetFetchBtn();
   } catch {
     showError('서버에 연결할 수 없습니다.');
@@ -102,7 +104,7 @@ function renderPostList() {
     const header = document.createElement('label');
     header.className = 'month-header';
     header.innerHTML =
-      `<input type="checkbox" class="month-checkbox" data-month="${monthKey}" checked onchange="onMonthCheckChange('${monthKey}')">` +
+      `<input type="checkbox" class="month-checkbox" data-month="${monthKey}" onchange="onMonthCheckChange('${monthKey}')">` +
       `<span>${monthLabel}</span>` +
       `<span class="month-post-count">${posts.length}개</span>`;
 
@@ -118,7 +120,7 @@ function renderPostList() {
       const li = document.createElement('li');
       li.className = 'post-item';
       li.innerHTML =
-        `<input type="checkbox" class="post-checkbox" data-logno="${post.logNo}" data-month="${monthKey}" checked onchange="onPostCheckChange('${monthKey}')">` +
+        `<input type="checkbox" class="post-checkbox" data-logno="${post.logNo}" data-month="${monthKey}" onchange="onPostCheckChange('${monthKey}')">` +
         `<span class="post-title">${escapeHtml(post.title)}</span>` +
         `<span class="post-date">${dateStr}</span>`;
 
@@ -157,6 +159,7 @@ function onMonthCheckChange(monthKey) {
   for (const cb of postCbs) {
     cb.checked = monthCb.checked;
   }
+  clearPeriodActive();
   updateDownloadButton();
 }
 
@@ -170,6 +173,7 @@ function onPostCheckChange(monthKey) {
     monthCb.checked = checked === total;
     monthCb.indeterminate = checked > 0 && checked < total;
   }
+  clearPeriodActive();
   updateDownloadButton();
 }
 
@@ -178,6 +182,7 @@ function selectAll() {
     cb.checked = true;
     cb.indeterminate = false;
   });
+  clearPeriodActive();
   updateDownloadButton();
 }
 
@@ -186,7 +191,12 @@ function deselectAll() {
     cb.checked = false;
     cb.indeterminate = false;
   });
+  clearPeriodActive();
   updateDownloadButton();
+}
+
+function clearPeriodActive() {
+  document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
 }
 
 function getSelectedPosts() {
@@ -199,9 +209,71 @@ function getSelectedPosts() {
 
 function updateDownloadButton() {
   const selected = document.querySelectorAll('.post-checkbox:checked').length;
+  const total = document.querySelectorAll('.post-checkbox').length;
   const btn = document.getElementById('downloadBtn');
   btn.textContent = `선택한 글 다운로드 (${selected}개)`;
   btn.disabled = selected === 0;
+
+  // 선택 카운터 배지 업데이트
+  const selectionText = document.getElementById('selectionText');
+  if (selectionText) {
+    selectionText.textContent = `${selected}개 선택 / 전체 ${total}개`;
+  }
+}
+
+// ============================
+// 기간 필터
+// ============================
+
+function selectByPeriod(period) {
+  // 기간 버튼 활성 상태 갱신
+  document.querySelectorAll('.period-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.period === period);
+  });
+
+  // 기준 날짜 계산 (오늘 기준)
+  const now = new Date();
+  let cutoff;
+
+  if (period.endsWith('w')) {
+    const weeks = parseInt(period);
+    cutoff = new Date(now.getTime() - weeks * 7 * 24 * 60 * 60 * 1000);
+  } else if (period.endsWith('m')) {
+    const months = parseInt(period);
+    cutoff = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+  }
+
+  // 각 체크박스를 기간 기준으로 체크/해제
+  document.querySelectorAll('.post-checkbox').forEach(cb => {
+    const logNo = cb.dataset.logno;
+    const post = postData.find(p => String(p.logNo) === logNo);
+    if (post) {
+      cb.checked = new Date(post.date) >= cutoff;
+    }
+  });
+
+  // 월별 체크박스 동기화
+  const monthKeys = new Set();
+  document.querySelectorAll('.month-checkbox').forEach(cb => {
+    monthKeys.add(cb.dataset.month);
+  });
+  for (const monthKey of monthKeys) {
+    syncMonthCheckbox(monthKey);
+  }
+
+  updateDownloadButton();
+}
+
+function syncMonthCheckbox(monthKey) {
+  const postCbs = document.querySelectorAll(`.post-checkbox[data-month="${monthKey}"]`);
+  const total = postCbs.length;
+  const checked = Array.from(postCbs).filter(cb => cb.checked).length;
+
+  const monthCb = document.querySelector(`.month-checkbox[data-month="${monthKey}"]`);
+  if (monthCb) {
+    monthCb.checked = checked === total;
+    monthCb.indeterminate = checked > 0 && checked < total;
+  }
 }
 
 // ============================

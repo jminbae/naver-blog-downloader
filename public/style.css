@@ -254,6 +254,85 @@ footer {
   color: #888;
 }
 
+/* 선택 카운터 배지 */
+.selection-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #e8f7ee;
+  border: 1px solid #b8e6cc;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.badge-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: #03c75a;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+#selectionText {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a7f3f;
+}
+
+/* 기간 필터 */
+.period-filter {
+  margin-bottom: 14px;
+}
+
+.period-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.period-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.period-btn {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid #ddd;
+  border-radius: 16px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.period-btn:hover {
+  background: #f0f0f0;
+  border-color: #ccc;
+}
+
+.period-btn.active {
+  background: #03c75a;
+  color: #fff;
+  border-color: #03c75a;
+}
+
+.period-btn.active:hover {
+  background: #02b050;
+  border-color: #02b050;
+}
+
 .post-list-toolbar {
   display: flex;
   justify-content: space-between;
