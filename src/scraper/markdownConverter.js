@@ -1,4 +1,5 @@
 const TurndownService = require('turndown');
+const cheerio = require('cheerio');
 
 function createConverter() {
   const turndown = new TurndownService({
@@ -123,13 +124,34 @@ source: "https://blog.naver.com/${blogId}/${logNo}"
 
 function cleanHtmlForDisplay(html) {
   if (!html) return '';
-  // img 태그에서 인라인 width, height, style 속성 제거 (원본 크기대로 표시)
-  return html
-    .replace(/<img([^>]*)\s+width\s*=\s*["'][^"']*["']/gi, '<img$1')
-    .replace(/<img([^>]*)\s+height\s*=\s*["'][^"']*["']/gi, '<img$1')
-    .replace(/<img([^>]*)\s+style\s*=\s*["'][^"']*["']/gi, '<img$1')
-    // 이미지 감싸는 컨테이너의 고정 width style도 제거
-    .replace(/(<(?:div|span|a)[^>]*)\s+style\s*=\s*["'][^"']*width\s*:\s*\d+px[^"']*["']/gi, '$1');
+  const $ = cheerio.load(html, { decodeEntities: false });
+
+  // 모든 img 태그에서 크기 제한 속성 제거
+  $('img').each((i, el) => {
+    $(el).removeAttr('width');
+    $(el).removeAttr('height');
+    $(el).removeAttr('style');
+    $(el).removeAttr('data-width');
+    $(el).removeAttr('data-height');
+  });
+
+  // 이미지 감싸는 컨테이너에서 고정 크기 style 제거
+  $('[class*="se-image"], [class*="se-module"], [class*="se-section"], [class*="se-component"]').each((i, el) => {
+    const style = $(el).attr('style');
+    if (style && /width\s*:/i.test(style)) {
+      $(el).removeAttr('style');
+    }
+  });
+
+  // a 태그의 고정 크기 style 제거 (이미지 링크)
+  $('a[style]').each((i, el) => {
+    const style = $(el).attr('style');
+    if (style && /width\s*:/i.test(style)) {
+      $(el).removeAttr('style');
+    }
+  });
+
+  return $('body').html() || '';
 }
 
 function convertToHtml(title, dateStr, contentHtml, blogId, logNo) {
