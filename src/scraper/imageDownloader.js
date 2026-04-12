@@ -79,6 +79,17 @@ function extractOriginalFilename(url) {
     if (!path.extname(filename)) {
       filename += '.jpg';
     }
+
+    // 파일명이 너무 짧거나 일반적이면(image.jpg 등) 상위 경로를 접두사로 추가
+    const genericNames = ['image', 'img', 'photo', 'thumb', 'thumbnail', 'picture', 'pic'];
+    const baseName = path.basename(filename, path.extname(filename));
+    if (genericNames.includes(baseName.toLowerCase()) && segments.length >= 2) {
+      // 상위 세그먼트의 앞 8자를 접두사로 사용 (고유성 확보)
+      const parent = segments[segments.length - 2];
+      const prefix = parent.substring(0, 12).replace(/[^a-zA-Z0-9_-]/g, '_');
+      filename = `${prefix}_${filename}`;
+    }
+
     if (filename.length > 150) {
       const ext = path.extname(filename);
       filename = filename.substring(0, 150 - ext.length) + ext;
