@@ -9,7 +9,7 @@ const { scrapePost } = require('../scraper/postContentScraper');
 const { convertToMarkdown } = require('../scraper/markdownConverter');
 const { downloadImages } = require('../scraper/imageDownloader');
 const { createZip } = require('../utils/zipBuilder');
-const { sanitizeFilename, formatDate, getUserDownloadsDir } = require('../utils/fileUtils');
+const { sanitizeFilename, formatDate, getDownloadsDir, isServerMode } = require('../utils/fileUtils');
 const { sleep } = require('../utils/httpClient');
 const { createJob, updateJob, getJob } = require('../jobManager');
 
@@ -26,8 +26,8 @@ async function runScrapingPipeline(jobId, blogId) {
       return;
     }
 
-    // 2. 사용자 다운로드 폴더에 블로그이름 폴더 생성
-    const downloadsDir = getUserDownloadsDir();
+    // 2. 저장 폴더 생성 (로컬: Downloads, 서버: /tmp)
+    const downloadsDir = getDownloadsDir();
     const blogDir = path.join(downloadsDir, blogId);
     const imagesDir = path.join(blogDir, 'images');
     fs.mkdirSync(blogDir, { recursive: true });
@@ -94,7 +94,8 @@ async function runScrapingPipeline(jobId, blogId) {
       processedPosts: posts.length,
       zipPath,
       zipFilename,
-      blogDir,
+      blogDir: isServerMode() ? null : blogDir,
+      serverMode: isServerMode(),
     });
   } catch (err) {
     console.error('[파이프라인 에러]', err);
@@ -141,6 +142,7 @@ router.get('/status/:jobId', (req, res) => {
     errors: job.errors,
     zipFilename: job.zipFilename,
     blogDir: job.blogDir,
+    serverMode: job.serverMode || false,
   });
 });
 
@@ -157,7 +159,17 @@ router.get('/download/:jobId', (req, res) => {
     return res.status(404).json({ error: 'ZIP 파일을 찾을 수 없습니다.' });
   }
 
-  res.download(job.zipPath, job.zipFilename);
+  res.download(job.zipPath, job.zipFilename, () => {
+    // 서버 모드: 다운로드 후 임시 파일 정리
+    if (isServerMode()) {
+      try {
+        const downloadsDir = getDownloadsDir();
+        const blogDir = path.join(downloadsDir, job.blogId);
+        fs.rmSync(blogDir, { recursive: true, force: true });
+        fs.rmSync(job.zipPath, { force: true });
+      } catch {}
+    }
+  });
 });
 
 module.exports = router;

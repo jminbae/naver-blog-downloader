@@ -20,16 +20,20 @@ function formatDate(date) {
   return `${yy}${mm}${dd}`;
 }
 
-function getUserDownloadsDir() {
-  const homeDir = os.homedir();
-  // Windows: C:\Users\Username\Downloads
-  // macOS/Linux: ~/Downloads
-  const downloadsDir = path.join(homeDir, 'Downloads');
-  if (fs.existsSync(downloadsDir)) {
-    return downloadsDir;
+function getDownloadsDir() {
+  // 서버 환경 (Render 등): 임시 디렉토리 사용
+  if (process.env.RENDER || process.env.SERVER_MODE) {
+    const tmpDir = path.join(os.tmpdir(), 'naver-blog-dl');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    return tmpDir;
   }
-  // fallback
-  return path.join(homeDir, 'Downloads');
+  // 로컬 환경: 사용자 Downloads 폴더
+  const downloadsDir = path.join(os.homedir(), 'Downloads');
+  return downloadsDir;
+}
+
+function isServerMode() {
+  return !!(process.env.RENDER || process.env.SERVER_MODE);
 }
 
 // 중복 파일명 처리: file.jpg → file (1).jpg → file (2).jpg
@@ -47,4 +51,4 @@ function getUniqueFilename(dir, filename) {
   return finalName;
 }
 
-module.exports = { sanitizeFilename, formatDate, getUserDownloadsDir, getUniqueFilename };
+module.exports = { sanitizeFilename, formatDate, getDownloadsDir, isServerMode, getUniqueFilename };

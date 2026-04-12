@@ -160,7 +160,7 @@ function showResult(job, jobId) {
   `;
 
   downloadLink.href = `/api/download/${jobId}`;
-  downloadLink.textContent = 'ZIP 파일 다운로드 (별도 백업용)';
+  downloadLink.textContent = job.serverMode ? 'ZIP 파일 다운로드' : 'ZIP 파일 다운로드 (별도 백업용)';
   downloadLink.style.display = 'block';
 
   // 오류 목록
