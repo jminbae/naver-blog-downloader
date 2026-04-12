@@ -29,7 +29,10 @@ async function runScrapingPipeline(jobId, blogId, posts, format) {
     const blogDir = path.join(downloadsDir, blogId);
     const imagesDir = path.join(blogDir, 'images');
     fs.mkdirSync(blogDir, { recursive: true });
-    fs.mkdirSync(imagesDir, { recursive: true });
+    // txt 형식은 이미지 불필요 → images 폴더 생성 안 함
+    if (format !== 'txt') {
+      fs.mkdirSync(imagesDir, { recursive: true });
+    }
 
     // 이미지 중복 추적 맵 (파일명 → [{hash, savedName}])
     const imageHashMap = {};

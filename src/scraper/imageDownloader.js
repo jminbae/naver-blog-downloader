@@ -159,9 +159,19 @@ async function downloadImages(images, imagesDir, markdown, hashMap) {
 
       const existing = hashMap[originalName].find(e => e.hash === hash);
 
+      // URL 치환 헬퍼: raw URL + HTML 인코딩(&amp;) 버전 모두 치환
+      function replaceUrl(content, fromUrl, toPath) {
+        content = content.split(fromUrl).join(toPath);
+        // HTML에서는 &가 &amp;로 인코딩됨 → 해당 버전도 치환
+        if (fromUrl.includes('&')) {
+          content = content.split(fromUrl.replace(/&/g, '&amp;')).join(toPath);
+        }
+        return content;
+      }
+
       if (existing) {
         // 동일 파일명 + 동일 내용 → 재사용
-        updatedMarkdown = updatedMarkdown.split(imageUrl).join(`./images/${existing.savedName}`);
+        updatedMarkdown = replaceUrl(updatedMarkdown, imageUrl, `./images/${existing.savedName}`);
         reuseCount++;
       } else {
         // 새 파일 결정
@@ -180,7 +190,7 @@ async function downloadImages(images, imagesDir, markdown, hashMap) {
 
         fs.writeFileSync(path.join(imagesDir, savedName), buf);
         hashMap[originalName].push({ hash, savedName });
-        updatedMarkdown = updatedMarkdown.split(imageUrl).join(`./images/${savedName}`);
+        updatedMarkdown = replaceUrl(updatedMarkdown, imageUrl, `./images/${savedName}`);
         successCount++;
       }
     } else {
