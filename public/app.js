@@ -59,6 +59,17 @@ function startPolling(jobId) {
     try {
       const res = await fetch(`/api/status/${jobId}`);
       const job = await res.json();
+
+      if (!res.ok || job.error) {
+        // 서버 재시작 등으로 작업이 사라진 경우
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+        showError('서버가 재시작되어 작업이 초기화되었습니다. 다시 시도해주세요.');
+        document.getElementById('progressSection').style.display = 'none';
+        resetButton();
+        return;
+      }
+
       updateProgress(job, jobId);
     } catch {
       // 네트워크 오류 시 계속 폴링
