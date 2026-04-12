@@ -121,8 +121,20 @@ source: "https://blog.naver.com/${blogId}/${logNo}"
   return frontmatter + markdown;
 }
 
+function cleanHtmlForDisplay(html) {
+  if (!html) return '';
+  // img 태그에서 인라인 width, height, style 속성 제거 (원본 크기대로 표시)
+  return html
+    .replace(/<img([^>]*)\s+width\s*=\s*["'][^"']*["']/gi, '<img$1')
+    .replace(/<img([^>]*)\s+height\s*=\s*["'][^"']*["']/gi, '<img$1')
+    .replace(/<img([^>]*)\s+style\s*=\s*["'][^"']*["']/gi, '<img$1')
+    // 이미지 감싸는 컨테이너의 고정 width style도 제거
+    .replace(/(<(?:div|span|a)[^>]*)\s+style\s*=\s*["'][^"']*width\s*:\s*\d+px[^"']*["']/gi, '$1');
+}
+
 function convertToHtml(title, dateStr, contentHtml, blogId, logNo) {
   const safeTitle = (title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const cleanedHtml = cleanHtmlForDisplay(contentHtml);
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -134,15 +146,16 @@ function convertToHtml(title, dateStr, contentHtml, blogId, logNo) {
   .meta { color: #888; font-size: 14px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
   .meta a { color: #03c75a; }
   h1 { font-size: 24px; margin-bottom: 8px; }
-  img { max-width: 100%; height: auto; border-radius: 4px; margin: 8px 0; display: block; }
-  .content * { max-width: 100%; }
+  img { max-width: 100%; height: auto !important; border-radius: 4px; margin: 8px 0; display: block; }
+  .content * { max-width: 100%; box-sizing: border-box; }
+  .content .se-image, .content .se-imageStrip, .content .se-module-image { width: 100% !important; }
 </style>
 </head>
 <body>
 <h1>${safeTitle}</h1>
 <div class="meta">${dateStr} | <a href="https://blog.naver.com/${blogId}/${logNo}">원본 글</a></div>
 <div class="content">
-${contentHtml || ''}
+${cleanedHtml}
 </div>
 </body>
 </html>`;
