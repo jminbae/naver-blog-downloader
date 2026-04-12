@@ -21,10 +21,11 @@ function createConverter() {
       );
     },
     replacement: (content, node) => {
+      // data-lazy-src가 원본 큰 이미지 URL → 우선 사용 (안전장치)
       const src =
-        node.getAttribute('src') ||
         node.getAttribute('data-lazy-src') ||
         node.getAttribute('data-src') ||
+        node.getAttribute('src') ||
         '';
       const alt = node.getAttribute('alt') || '';
       return `![${alt}](${src})\n\n`;

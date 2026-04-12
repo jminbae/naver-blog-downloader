@@ -69,28 +69,66 @@ async function scrapePost(blogId, logNo) {
     contentHtml = '';
   }
 
-  // 이미지 URL 수집 (모든 이미지 포함, 링크카드 썸네일도 포함)
+  // 이미지 URL 수집 + DOM에서 src 속성 직접 교체
+  // 핵심: 네이버는 src=작은썸네일, data-lazy-src=실제이미지 구조.
+  // 브라우저는 src만 사용하므로, src를 w966 큰 이미지로 직접 교체해야 함.
   const images = [];
-  const $content = cheerio.load(contentHtml);
+  const $content = cheerio.load(contentHtml, { decodeEntities: false });
 
+  // 헬퍼: 이미지 관련 요소의 URL을 w966으로 업그레이드
+  function upgradeElement($el, attrs) {
+    // 주어진 속성들 중 가장 큰 원본 URL 찾기
+    let bestSrc = null;
+    for (const attr of attrs) {
+      const val = $el.attr(attr);
+      if (val && (val.includes('pstatic.net') || val.includes('blogfiles'))) {
+        bestSrc = val;
+        break;
+      }
+    }
+    if (!bestSrc) return;
+
+    const fullSrc = upgradeToLarge(bestSrc);
+
+    // 중복 제거 후 images 배열에 추가
+    if (!images.includes(fullSrc)) {
+      images.push(fullSrc);
+    }
+
+    // src 속성을 w966 URL로 직접 교체
+    $el.attr('src', fullSrc);
+    // lazy loading 속성 제거 (로컬 HTML에서는 JS 없이 무의미)
+    $el.removeAttr('data-lazy-src');
+    $el.removeAttr('data-src');
+  }
+
+  // 1. <img> 태그 처리
   $content('img').each((i, el) => {
-    const src =
-      $content(el).attr('data-lazy-src') ||
-      $content(el).attr('data-src') ||
-      $content(el).attr('src');
-    if (src && (src.includes('pstatic.net') || src.includes('blogfiles'))) {
-      // 큰 이미지 URL로 변환 (type=w966)
+    upgradeElement($content(el), ['data-lazy-src', 'data-src', 'src']);
+  });
+
+  // 2. <video> 포스터 이미지 처리 (네이버는 GIF를 video로 변환)
+  $content('video').each((i, el) => {
+    const $el = $content(el);
+    const poster = $el.attr('poster');
+    const src = $el.attr('src');
+
+    // poster 속성의 블러 썸네일 → w966으로 업그레이드
+    if (poster && (poster.includes('pstatic.net') || poster.includes('blogfiles'))) {
+      $el.attr('poster', upgradeToLarge(poster));
+    }
+    // video src가 pstatic 이미지(GIF)인 경우도 처리
+    if (src && src.includes('pstatic.net') && !src.includes('mblogvideo-phinf')) {
       const fullSrc = upgradeToLarge(src);
-      // 중복 제거
       if (!images.includes(fullSrc)) {
         images.push(fullSrc);
       }
-      // contentHtml에서도 URL 교체 (나중에 이미지 경로 매칭용)
-      if (fullSrc !== src) {
-        contentHtml = contentHtml.split(src).join(fullSrc);
-      }
+      $el.attr('src', fullSrc);
     }
   });
+
+  // 수정된 DOM을 HTML 문자열로 재직렬화
+  contentHtml = $content('body').html() || '';
 
   return { title, contentHtml, images, logNo };
 }
