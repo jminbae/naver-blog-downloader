@@ -48,8 +48,8 @@ async function fetchPostList() {
 
     renderPostList();
     document.getElementById('postListSection').style.display = 'block';
-    // 디폴트: 최근 2개월 선택
-    selectByPeriod('2m');
+    // 디폴트: 최근 10개 선택
+    selectByCount(10);
     resetFetchBtn();
   } catch {
     showError('서버에 연결할 수 없습니다.');
