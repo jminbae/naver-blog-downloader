@@ -7,7 +7,16 @@ const PORT = process.env.PORT || 3000;
 
 // 미들웨어
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    // HTML, JS, CSS는 항상 서버에 재검증하도록 설정
+    if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 // API 라우트
 const apiRoutes = require('./src/routes/api');
