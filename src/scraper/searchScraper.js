@@ -24,8 +24,8 @@ function parseDateStr(str) {
   return now;
 }
 
-// ssc=tab.blog.all HTML에서 블로그명/날짜 포함 전체 메타데이터 추출
-function parseFullMetadata(html, existingKeys) {
+// ssc=tab.blog.all HTML에서 카드당 메인글 1개만 추출 (서브링크 제외)
+function parseFullMetadata(html, existingKeys, seenBlogs) {
   const $ = cheerio.load(html);
   const results = [];
   const seen = new Set(existingKeys || []);
@@ -40,10 +40,14 @@ function parseFullMetadata(html, existingKeys) {
     const key = blogId + '_' + logNo;
     if (seen.has(key)) return;
 
+    // 같은 블로그의 서브링크 스킵 — 카드당 메인글 1개만
+    if (seenBlogs && seenBlogs.has(blogId)) { seen.add(key); return; }
+
     const text = $(el).text().trim();
     if (!text || text.length < 5) return;
     if (text.includes('blog.naver.com')) return;
     seen.add(key);
+    if (seenBlogs) seenBlogs.add(blogId);
 
     // 개별 포스트 컨테이너 찾기
     let container = $(el);
@@ -80,9 +84,10 @@ function parseFullMetadata(html, existingKeys) {
 async function searchBlogPosts(query, maxResults = 70) {
   console.log('[검색] "' + query + '" 검색 중...');
 
-  // ssc=tab.blog.all 페이지 순회 — 네이버 블로그탭 관련도순 그대로
+  // ssc=tab.blog.all 페이지 순회 — 카드당 메인글 1개씩
   const results = [];
   const seen = new Set();
+  const seenBlogs = new Set();
   const maxPages = 8;
 
   for (let page = 0; page < maxPages; page++) {
@@ -92,7 +97,7 @@ async function searchBlogPosts(query, maxResults = 70) {
 
     try {
       const res = await httpClient.get(url, { headers: SEARCH_HEADERS });
-      const posts = parseFullMetadata(res.data, seen);
+      const posts = parseFullMetadata(res.data, seen, seenBlogs);
 
       if (posts.length === 0 && page > 0) {
         console.log('[검색] 페이지 ' + (page + 1) + ': 신규 없음, 종료');
