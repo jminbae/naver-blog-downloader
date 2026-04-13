@@ -143,7 +143,66 @@ function renderPostList() {
     return;
   }
 
-  // 월별 그룹핑 (YYYY-MM)
+  document.getElementById('postCount').textContent = `총 ${postData.length}개`;
+
+  // 검색 모드: 기간 필터 숨기고 플랫 리스트
+  const periodBtns = document.querySelectorAll('.period-btn[data-period$="w"], .period-btn[data-period$="m"]');
+  const periodSep = document.querySelector('.period-sep');
+  if (currentMode === 'search') {
+    periodBtns.forEach(btn => btn.style.display = 'none');
+    if (periodSep) periodSep.style.display = 'none';
+    renderFlatList(container);
+  } else {
+    periodBtns.forEach(btn => btn.style.display = '');
+    if (periodSep) periodSep.style.display = '';
+    renderMonthGroupedList(container);
+  }
+
+  updateDownloadButton();
+}
+
+// 검색 모드: 상위노출 순서 그대로 플랫 리스트
+function renderFlatList(container) {
+  const ul = document.createElement('ul');
+  ul.className = 'post-list';
+
+  for (let i = 0; i < postData.length; i++) {
+    const post = postData[i];
+    const d = new Date(post.date);
+    const dateStr = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    const postKey = getPostKey(post);
+
+    const li = document.createElement('li');
+    li.className = 'post-item';
+
+    const rankBadge = `<span class="post-rank">${i + 1}</span>`;
+    let blogBadge = '';
+    if (post.blogName) {
+      blogBadge = `<span class="post-blog-name" title="${escapeHtml(post.blogName)}">${escapeHtml(post.blogName)}</span>`;
+    }
+
+    li.innerHTML =
+      `<input type="checkbox" class="post-checkbox" data-postkey="${postKey}" data-idx="${i}" onchange="onPostCheckChangeFlat()">` +
+      rankBadge + blogBadge +
+      `<span class="post-title">${escapeHtml(post.title)}</span>` +
+      `<span class="post-date">${dateStr}</span>`;
+
+    li.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'INPUT') {
+        const cb = li.querySelector('.post-checkbox');
+        cb.checked = !cb.checked;
+        onPostCheckChangeFlat();
+      }
+    });
+
+    ul.appendChild(li);
+  }
+
+  container.appendChild(ul);
+}
+
+// 블로그 모드: 월별 그룹핑
+function renderMonthGroupedList(container) {
   const grouped = {};
   for (const post of postData) {
     const d = new Date(post.date);
@@ -153,7 +212,6 @@ function renderPostList() {
   }
 
   const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-  document.getElementById('postCount').textContent = `총 ${postData.length}개`;
 
   for (const monthKey of sortedKeys) {
     const posts = grouped[monthKey];
@@ -182,14 +240,8 @@ function renderPostList() {
       const li = document.createElement('li');
       li.className = 'post-item';
 
-      let blogBadge = '';
-      if (currentMode === 'search' && post.blogName) {
-        blogBadge = `<span class="post-blog-name" title="${escapeHtml(post.blogName)}">${escapeHtml(post.blogName)}</span>`;
-      }
-
       li.innerHTML =
         `<input type="checkbox" class="post-checkbox" data-postkey="${postKey}" data-month="${monthKey}" onchange="onPostCheckChange('${monthKey}')">` +
-        blogBadge +
         `<span class="post-title">${escapeHtml(post.title)}</span>` +
         `<span class="post-date">${dateStr}</span>`;
 
@@ -208,8 +260,6 @@ function renderPostList() {
     groupDiv.appendChild(ul);
     container.appendChild(groupDiv);
   }
-
-  updateDownloadButton();
 }
 
 function escapeHtml(str) {
@@ -241,6 +291,11 @@ function onPostCheckChange(monthKey) {
     monthCb.checked = checked === total;
     monthCb.indeterminate = checked > 0 && checked < total;
   }
+  clearPeriodActive();
+  updateDownloadButton();
+}
+
+function onPostCheckChangeFlat() {
   clearPeriodActive();
   updateDownloadButton();
 }
@@ -325,14 +380,22 @@ function selectByCount(count) {
     btn.classList.toggle('active', btn.dataset.period === count + 'n');
   });
 
-  const sortedPosts = [...postData].sort((a, b) => new Date(b.date) - new Date(a.date));
-  const topKeys = new Set(sortedPosts.slice(0, count).map(p => getPostKey(p)));
+  if (currentMode === 'search') {
+    // 검색 모드: 상위노출 순서(원래 순서)대로 상위 N개 선택
+    document.querySelectorAll('.post-checkbox').forEach(cb => {
+      const idx = parseInt(cb.dataset.idx);
+      cb.checked = idx < count;
+    });
+  } else {
+    // 블로그 모드: 최신순 N개 선택
+    const sortedPosts = [...postData].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const topKeys = new Set(sortedPosts.slice(0, count).map(p => getPostKey(p)));
+    document.querySelectorAll('.post-checkbox').forEach(cb => {
+      cb.checked = topKeys.has(cb.dataset.postkey);
+    });
+    syncAllMonthCheckboxes();
+  }
 
-  document.querySelectorAll('.post-checkbox').forEach(cb => {
-    cb.checked = topKeys.has(cb.dataset.postkey);
-  });
-
-  syncAllMonthCheckboxes();
   updateDownloadButton();
 }
 

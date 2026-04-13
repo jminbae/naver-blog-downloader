@@ -486,6 +486,21 @@ footer {
   flex-shrink: 0;
 }
 
+/* 순위 배지 (검색 모드) */
+.post-rank {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9ecef;
+  color: #555;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 50%;
+}
+
 /* 블로그명 배지 (검색 모드) */
 .post-blog-name {
   flex-shrink: 0;
