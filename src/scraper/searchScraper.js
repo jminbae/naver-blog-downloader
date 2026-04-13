@@ -24,28 +24,6 @@ function parseDateStr(str) {
   return now;
 }
 
-// HTML에서 blogId/logNo 순서만 추출 (관련도순 확보용)
-function parseOrderOnly(html) {
-  const $ = cheerio.load(html);
-  const results = [];
-  const seen = new Set();
-
-  $('a[href]').each((_, el) => {
-    const href = $(el).attr('href') || '';
-    const m = href.match(/blog\.naver\.com\/(\w+)\/(\d+)/);
-    if (!m) return;
-    const key = m[1] + '_' + m[2];
-    if (seen.has(key)) return;
-    const text = $(el).text().trim();
-    if (!text || text.length < 5) return;
-    if (text.includes('blog.naver.com')) return;
-    seen.add(key);
-    results.push({ blogId: m[1], logNo: m[2], title: text.replace(/\s+/g, ' ').substring(0, 200) });
-  });
-
-  return results;
-}
-
 // ssc=tab.blog.all HTML에서 블로그명/날짜 포함 전체 메타데이터 추출
 function parseFullMetadata(html, existingKeys) {
   const $ = cheerio.load(html);
@@ -102,21 +80,9 @@ function parseFullMetadata(html, existingKeys) {
 async function searchBlogPosts(query, maxResults = 70) {
   console.log('[검색] "' + query + '" 검색 중...');
 
-  // 1단계: 일반 검색 → 관련도순 순서 확보 (blogId/logNo/title만)
-  let orderList = [];
-  try {
-    const url = 'https://search.naver.com/search.naver?where=blog&query='
-      + encodeURIComponent(query) + '&sm=tab_opt&start=1';
-    const res = await httpClient.get(url, { headers: SEARCH_HEADERS });
-    orderList = parseOrderOnly(res.data);
-    console.log('[검색] 관련도순: ' + orderList.length + '개');
-  } catch (err) {
-    console.error('[검색 에러] 관련도순:', err.message);
-  }
-
-  // 2단계: ssc=tab.blog.all → 전체 메타데이터(블로그명, 날짜) + 추가 결과
-  const metadataMap = new Map(); // key → {full post data}
-  const sscOrder = []; // ssc에서만 나온 추가 결과 순서
+  // ssc=tab.blog.all 페이지 순회 — 네이버 블로그탭 관련도순 그대로
+  const results = [];
+  const seen = new Set();
   const maxPages = 8;
 
   for (let page = 0; page < maxPages; page++) {
@@ -126,8 +92,7 @@ async function searchBlogPosts(query, maxResults = 70) {
 
     try {
       const res = await httpClient.get(url, { headers: SEARCH_HEADERS });
-      const existingKeys = new Set(metadataMap.keys());
-      const posts = parseFullMetadata(res.data, existingKeys);
+      const posts = parseFullMetadata(res.data, seen);
 
       if (posts.length === 0 && page > 0) {
         console.log('[검색] 페이지 ' + (page + 1) + ': 신규 없음, 종료');
@@ -135,13 +100,12 @@ async function searchBlogPosts(query, maxResults = 70) {
       }
 
       for (const p of posts) {
-        const key = p.blogId + '_' + p.logNo;
-        metadataMap.set(key, p);
-        sscOrder.push(key);
+        seen.add(p.blogId + '_' + p.logNo);
+        results.push(p);
       }
-      console.log('[검색] 페이지 ' + (page + 1) + ': ' + posts.length + '개 (메타데이터 총 ' + metadataMap.size + '개)');
+      console.log('[검색] 페이지 ' + (page + 1) + ': ' + posts.length + '개 (총 ' + results.length + '개)');
 
-      if (metadataMap.size >= maxResults + orderList.length) break;
+      if (results.length >= maxResults) break;
       await sleep(1000);
     } catch (err) {
       console.error('[검색 에러] 페이지 ' + (page + 1) + ':', err.message);
@@ -149,35 +113,7 @@ async function searchBlogPosts(query, maxResults = 70) {
     }
   }
 
-  // 3단계: 병합 — 관련도순 먼저, 이후 ssc 추가분
-  const results = [];
-  const usedKeys = new Set();
-
-  // 관련도순 결과에 ssc 메타데이터 병합
-  for (const item of orderList) {
-    const key = item.blogId + '_' + item.logNo;
-    if (usedKeys.has(key)) continue;
-    usedKeys.add(key);
-
-    const meta = metadataMap.get(key);
-    results.push(meta || {
-      logNo: item.logNo,
-      title: item.title,
-      date: new Date(),
-      blogId: item.blogId,
-      blogName: item.blogId,
-    });
-  }
-
-  // ssc에서만 나온 추가 결과
-  for (const key of sscOrder) {
-    if (usedKeys.has(key)) continue;
-    usedKeys.add(key);
-    results.push(metadataMap.get(key));
-    if (results.length >= maxResults) break;
-  }
-
-  console.log('[검색] 최종: 관련도순 ' + Math.min(orderList.length, results.length) + '개 + 추가 ' + Math.max(0, results.length - orderList.length) + '개 = ' + results.length + '개');
+  console.log('[검색] 최종: ' + results.length + '개');
   return results.slice(0, maxResults);
 }
 
