@@ -10,7 +10,10 @@
   <div class="container">
     <header>
       <h1>네이버 블로그 다운로더</h1>
-      <p class="subtitle">블로그 글을 HTML / Markdown / Text로 다운로드</p>
+      <div class="tab-nav">
+        <button class="tab-btn active" data-mode="blog" onclick="switchTab('blog')">블로그 최신글 다운로드하기</button>
+        <button class="tab-btn" data-mode="search" onclick="switchTab('search')">검색되는 포스팅 다운로드하기</button>
+      </div>
     </header>
 
     <!-- 입력 섹션 -->
@@ -109,7 +112,8 @@
     </section>
 
     <footer>
-      <p>&copy; 2026 주식회사 진솔컴퍼니. All rights reserved.</p>
+      <p>&copy; 2026 JSC. All rights reserved.</p>
+      <p class="disclaimer">본 서비스는 개인적인 백업 용도로만 사용해야 하며, 타인의 저작권을 침해하는 행위로 발생한 책임은 사용자에게 있습니다.</p>
     </footer>
   </div>
 

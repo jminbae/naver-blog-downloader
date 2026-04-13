@@ -1,54 +1,119 @@
 let pollingInterval = null;
-let postData = [];   // 전체 글 목록: [{logNo, title, date(ISO)}, ...]
-let blogUrl = '';     // 현재 블로그 URL
+let postData = [];       // 전체 글 목록
+let blogUrl = '';        // 블로그 모드 URL
+let currentMode = 'blog'; // 'blog' | 'search'
+let searchQuery = '';    // 검색 모드 검색어
+
+// ============================
+// 탭 전환
+// ============================
+
+function switchTab(mode) {
+  currentMode = mode;
+
+  // 탭 버튼 활성 상태
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+
+  // 입력 라벨 & 플레이스홀더 변경
+  const label = document.querySelector('#inputSection label');
+  const input = document.getElementById('blogUrl');
+
+  if (mode === 'search') {
+    label.textContent = '검색어';
+    input.placeholder = '검색어를 입력하세요 (예: 울쎄라)';
+  } else {
+    label.textContent = '블로그 URL';
+    input.placeholder = 'https://blog.naver.com/blogname';
+  }
+
+  // 입력값 & 상태 초기화
+  input.value = '';
+  postData = [];
+  blogUrl = '';
+  searchQuery = '';
+
+  // 하위 섹션 숨기기
+  document.getElementById('postListSection').style.display = 'none';
+  document.getElementById('progressSection').style.display = 'none';
+  document.getElementById('resultSection').style.display = 'none';
+  hideError();
+}
+
+// ============================
+// 포스트 키 헬퍼
+// ============================
+
+function getPostKey(post) {
+  if (currentMode === 'search') return `${post.blogId}_${post.logNo}`;
+  return String(post.logNo);
+}
 
 // ============================
 // Step 1: 글 목록 가져오기
 // ============================
 
 async function fetchPostList() {
-  const urlInput = document.getElementById('blogUrl');
+  const input = document.getElementById('blogUrl');
   const fetchBtn = document.getElementById('fetchBtn');
-  const url = urlInput.value.trim();
+  const value = input.value.trim();
 
-  if (!url) {
-    showError('블로그 URL을 입력해주세요.');
+  if (!value) {
+    showError(currentMode === 'search' ? '검색어를 입력해주세요.' : '블로그 URL을 입력해주세요.');
     return;
   }
-  if (!url.includes('blog.naver.com') && !url.includes('m.blog.naver.com')) {
-    showError('네이버 블로그 URL을 입력해주세요. (예: https://blog.naver.com/blogname)');
-    return;
+
+  if (currentMode === 'blog') {
+    if (!value.includes('blog.naver.com') && !value.includes('m.blog.naver.com')) {
+      showError('네이버 블로그 URL을 입력해주세요. (예: https://blog.naver.com/blogname)');
+      return;
+    }
   }
 
   hideError();
   fetchBtn.disabled = true;
   fetchBtn.textContent = '불러오는 중...';
 
-  // 이전 섹션 숨기기
   document.getElementById('postListSection').style.display = 'none';
   document.getElementById('progressSection').style.display = 'none';
   document.getElementById('resultSection').style.display = 'none';
 
   try {
-    const res = await fetch('/api/fetch-list', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    });
-    const data = await res.json();
+    let data;
 
-    if (!res.ok) {
-      showError(data.error || '요청 실패');
-      resetFetchBtn();
-      return;
+    if (currentMode === 'search') {
+      const res = await fetch('/api/search-posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: value }),
+      });
+      data = await res.json();
+      if (!res.ok) {
+        showError(data.error || '요청 실패');
+        resetFetchBtn();
+        return;
+      }
+      searchQuery = data.query;
+    } else {
+      const res = await fetch('/api/fetch-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: value }),
+      });
+      data = await res.json();
+      if (!res.ok) {
+        showError(data.error || '요청 실패');
+        resetFetchBtn();
+        return;
+      }
+      blogUrl = value;
     }
 
-    blogUrl = url;
     postData = data.posts;
 
     renderPostList();
     document.getElementById('postListSection').style.display = 'block';
-    // 디폴트: 최근 10개 선택
     selectByCount(10);
     resetFetchBtn();
   } catch {
@@ -72,7 +137,7 @@ function renderPostList() {
   container.innerHTML = '';
 
   if (postData.length === 0) {
-    container.innerHTML = '<p class="empty-message">최근 6개월 내 글이 없습니다.</p>';
+    container.innerHTML = '<p class="empty-message">검색 결과가 없습니다.</p>';
     document.getElementById('postCount').textContent = '0개';
     updateDownloadButton();
     return;
@@ -87,9 +152,7 @@ function renderPostList() {
     grouped[key].push(post);
   }
 
-  // 최신순 정렬
   const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-
   document.getElementById('postCount').textContent = `총 ${postData.length}개`;
 
   for (const monthKey of sortedKeys) {
@@ -100,7 +163,6 @@ function renderPostList() {
     const groupDiv = document.createElement('div');
     groupDiv.className = 'month-group';
 
-    // 월 헤더 (체크박스 + 월명 + 글 수)
     const header = document.createElement('label');
     header.className = 'month-header';
     header.innerHTML =
@@ -108,7 +170,6 @@ function renderPostList() {
       `<span>${monthLabel}</span>` +
       `<span class="month-post-count">${posts.length}개</span>`;
 
-    // 글 리스트
     const ul = document.createElement('ul');
     ul.className = 'post-list';
     ul.dataset.month = monthKey;
@@ -116,15 +177,22 @@ function renderPostList() {
     for (const post of posts) {
       const d = new Date(post.date);
       const dateStr = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+      const postKey = getPostKey(post);
 
       const li = document.createElement('li');
       li.className = 'post-item';
+
+      let blogBadge = '';
+      if (currentMode === 'search' && post.blogName) {
+        blogBadge = `<span class="post-blog-name" title="${escapeHtml(post.blogName)}">${escapeHtml(post.blogName)}</span>`;
+      }
+
       li.innerHTML =
-        `<input type="checkbox" class="post-checkbox" data-logno="${post.logNo}" data-month="${monthKey}" onchange="onPostCheckChange('${monthKey}')">` +
+        `<input type="checkbox" class="post-checkbox" data-postkey="${postKey}" data-month="${monthKey}" onchange="onPostCheckChange('${monthKey}')">` +
+        blogBadge +
         `<span class="post-title">${escapeHtml(post.title)}</span>` +
         `<span class="post-date">${dateStr}</span>`;
 
-      // 행 클릭 시 체크박스 토글
       li.addEventListener('click', (e) => {
         if (e.target.tagName !== 'INPUT') {
           const cb = li.querySelector('.post-checkbox');
@@ -200,11 +268,11 @@ function clearPeriodActive() {
 }
 
 function getSelectedPosts() {
-  const selectedLogNos = new Set();
+  const selectedKeys = new Set();
   document.querySelectorAll('.post-checkbox:checked').forEach(cb => {
-    selectedLogNos.add(cb.dataset.logno);
+    selectedKeys.add(cb.dataset.postkey);
   });
-  return postData.filter(p => selectedLogNos.has(String(p.logNo)));
+  return postData.filter(p => selectedKeys.has(getPostKey(p)));
 }
 
 function updateDownloadButton() {
@@ -214,7 +282,6 @@ function updateDownloadButton() {
   btn.textContent = `선택한 글 다운로드 (${selected}개)`;
   btn.disabled = selected === 0;
 
-  // 선택 카운터 배지 업데이트
   const selectionText = document.getElementById('selectionText');
   if (selectionText) {
     selectionText.textContent = `${selected}개 선택 / 전체 ${total}개`;
@@ -222,16 +289,14 @@ function updateDownloadButton() {
 }
 
 // ============================
-// 기간 필터
+// 기간/개수 필터
 // ============================
 
 function selectByPeriod(period) {
-  // 기간 버튼 활성 상태 갱신
   document.querySelectorAll('.period-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.period === period);
   });
 
-  // 기준 날짜 계산 (오늘 기준)
   const now = new Date();
   let cutoff;
 
@@ -243,42 +308,35 @@ function selectByPeriod(period) {
     cutoff = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
   }
 
-  // 각 체크박스를 기간 기준으로 체크/해제
   document.querySelectorAll('.post-checkbox').forEach(cb => {
-    const logNo = cb.dataset.logno;
-    const post = postData.find(p => String(p.logNo) === logNo);
+    const key = cb.dataset.postkey;
+    const post = postData.find(p => getPostKey(p) === key);
     if (post) {
       cb.checked = new Date(post.date) >= cutoff;
     }
   });
 
-  // 월별 체크박스 동기화
-  const monthKeys = new Set();
-  document.querySelectorAll('.month-checkbox').forEach(cb => {
-    monthKeys.add(cb.dataset.month);
-  });
-  for (const monthKey of monthKeys) {
-    syncMonthCheckbox(monthKey);
-  }
-
+  syncAllMonthCheckboxes();
   updateDownloadButton();
 }
 
 function selectByCount(count) {
-  // 기간 버튼 활성 상태 갱신
   document.querySelectorAll('.period-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.period === count + 'n');
   });
 
-  // 최신순으로 정렬된 postData 기준, 상위 N개만 선택
   const sortedPosts = [...postData].sort((a, b) => new Date(b.date) - new Date(a.date));
-  const topLogNos = new Set(sortedPosts.slice(0, count).map(p => String(p.logNo)));
+  const topKeys = new Set(sortedPosts.slice(0, count).map(p => getPostKey(p)));
 
   document.querySelectorAll('.post-checkbox').forEach(cb => {
-    cb.checked = topLogNos.has(cb.dataset.logno);
+    cb.checked = topKeys.has(cb.dataset.postkey);
   });
 
-  // 월별 체크박스 동기화
+  syncAllMonthCheckboxes();
+  updateDownloadButton();
+}
+
+function syncAllMonthCheckboxes() {
   const monthKeys = new Set();
   document.querySelectorAll('.month-checkbox').forEach(cb => {
     monthKeys.add(cb.dataset.month);
@@ -286,8 +344,6 @@ function selectByCount(count) {
   for (const monthKey of monthKeys) {
     syncMonthCheckbox(monthKey);
   }
-
-  updateDownloadButton();
 }
 
 function syncMonthCheckbox(monthKey) {
@@ -317,14 +373,22 @@ async function startDownload() {
 
   try {
     const format = document.getElementById('formatSelect').value;
+    const body = {
+      format,
+      posts: selectedPosts,
+      mode: currentMode,
+    };
+
+    if (currentMode === 'search') {
+      body.query = searchQuery;
+    } else {
+      body.url = blogUrl;
+    }
+
     const res = await fetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: blogUrl,
-        format,
-        posts: selectedPosts,
-      }),
+      body: JSON.stringify(body),
     });
 
     const data = await res.json();
@@ -335,7 +399,6 @@ async function startDownload() {
       return;
     }
 
-    // 진행 상태 표시
     document.getElementById('progressSection').style.display = 'block';
     document.getElementById('resultSection').style.display = 'none';
 
@@ -460,11 +523,19 @@ function showResult(job, jobId) {
   }
 
   const successCount = job.totalPosts - job.errors.length;
-  summary.innerHTML =
-    `블로그 <strong>${job.blogId}</strong>에서 ` +
-    `총 <strong>${successCount}</strong>개 글 다운로드 완료` +
-    (job.errors.length > 0 ? ` (${job.errors.length}개 실패)` : '') +
-    (job.blogDir ? `<br><small style="color:#888">저장 위치: ${job.blogDir}</small>` : '');
+  const failText = job.errors.length > 0 ? ` (${job.errors.length}개 실패)` : '';
+
+  if (job.mode === 'search' && job.query) {
+    summary.innerHTML =
+      `"<strong>${escapeHtml(job.query)}</strong>" 검색 결과에서 ` +
+      `총 <strong>${successCount}</strong>개 글 다운로드 완료` + failText +
+      (job.blogDir ? `<br><small style="color:#888">저장 위치: ${job.blogDir}</small>` : '');
+  } else {
+    summary.innerHTML =
+      `블로그 <strong>${job.blogId}</strong>에서 ` +
+      `총 <strong>${successCount}</strong>개 글 다운로드 완료` + failText +
+      (job.blogDir ? `<br><small style="color:#888">저장 위치: ${job.blogDir}</small>` : '');
+  }
 
   downloadLink.href = `/api/download/${jobId}`;
   downloadLink.textContent = job.serverMode ? 'ZIP 파일 다운로드' : 'ZIP 파일 다운로드 (별도 백업용)';
