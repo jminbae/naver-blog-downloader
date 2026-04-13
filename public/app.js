@@ -145,16 +145,9 @@ function renderPostList() {
 
   document.getElementById('postCount').textContent = `총 ${postData.length}개`;
 
-  // 검색 모드: 기간 필터 숨기고 플랫 리스트
-  const periodBtns = document.querySelectorAll('.period-btn[data-period$="w"], .period-btn[data-period$="m"]');
-  const periodSep = document.querySelector('.period-sep');
   if (currentMode === 'search') {
-    periodBtns.forEach(btn => btn.style.display = 'none');
-    if (periodSep) periodSep.style.display = 'none';
     renderFlatList(container);
   } else {
-    periodBtns.forEach(btn => btn.style.display = '');
-    if (periodSep) periodSep.style.display = '';
     renderMonthGroupedList(container);
   }
 
@@ -371,7 +364,7 @@ function selectByPeriod(period) {
     }
   });
 
-  syncAllMonthCheckboxes();
+  if (currentMode !== 'search') syncAllMonthCheckboxes();
   updateDownloadButton();
 }
 

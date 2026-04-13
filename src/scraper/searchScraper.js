@@ -1,6 +1,11 @@
 const { httpClient, sleep } = require('../utils/httpClient');
 const cheerio = require('cheerio');
 
+const SEARCH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Referer': 'https://search.naver.com/',
+};
+
 // 날짜 문자열 파싱 ("2026.04.13." or "4주 전" → Date)
 function parseDateStr(str) {
   if (!str) return new Date();
@@ -19,13 +24,34 @@ function parseDateStr(str) {
   return now;
 }
 
-// ssc=tab.blog.all 페이지의 HTML을 cheerio로 파싱
-function parseSearchPage(html) {
+// HTML에서 blogId/logNo 순서만 추출 (관련도순 확보용)
+function parseOrderOnly(html) {
   const $ = cheerio.load(html);
   const results = [];
   const seen = new Set();
 
-  // 블로그 링크가 있는 모든 앵커 태그 순회
+  $('a[href]').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const m = href.match(/blog\.naver\.com\/(\w+)\/(\d+)/);
+    if (!m) return;
+    const key = m[1] + '_' + m[2];
+    if (seen.has(key)) return;
+    const text = $(el).text().trim();
+    if (!text || text.length < 5) return;
+    if (text.includes('blog.naver.com')) return;
+    seen.add(key);
+    results.push({ blogId: m[1], logNo: m[2], title: text.replace(/\s+/g, ' ').substring(0, 200) });
+  });
+
+  return results;
+}
+
+// ssc=tab.blog.all HTML에서 블로그명/날짜 포함 전체 메타데이터 추출
+function parseFullMetadata(html, existingKeys) {
+  const $ = cheerio.load(html);
+  const results = [];
+  const seen = new Set(existingKeys || []);
+
   $('a[href]').each((_, el) => {
     const href = $(el).attr('href') || '';
     const m = href.match(/blog\.naver\.com\/(\w+)\/(\d+)/);
@@ -36,54 +62,62 @@ function parseSearchPage(html) {
     const key = blogId + '_' + logNo;
     if (seen.has(key)) return;
 
-    // 제목 텍스트가 있는 링크만 (이미지/썸네일 링크 제외)
     const text = $(el).text().trim();
     if (!text || text.length < 5) return;
+    if (text.includes('blog.naver.com')) return;
     seen.add(key);
 
-    // 개별 포스트 컨테이너 찾기: 위로 올라가다 자식이 많은(>20) 리스트 컨테이너 직전에서 멈춤
+    // 개별 포스트 컨테이너 찾기
     let container = $(el);
     for (let i = 0; i < 10; i++) {
       const next = container.parent();
       if (!next.length) break;
-      if (next.children().length > 20) break; // 리스트 컨테이너 도달 → 현재 레벨 사용
+      if (next.children().length > 20) break;
       container = next;
     }
 
-    // 블로그명: sds-comps-profile-info-title-text 클래스
+    // 블로그명
     let blogName = blogId;
     const nameEl = container.find('[class*="profile-info-title-text"]').first();
     if (nameEl.length) {
       blogName = nameEl.text().trim() || blogId;
     }
 
-    // 날짜: sds-comps-profile-info-subtext 내 날짜 형식 텍스트
+    // 날짜
     let date = new Date();
     container.find('[class*="profile-info-subtext"]').each((_, sub) => {
       const subText = $(sub).text().trim();
       if (/\d{4}\.\d{1,2}\.\d{1,2}/.test(subText) || /\d+[일주달개월]?\s*전/.test(subText) || /어제/.test(subText)) {
         date = parseDateStr(subText);
-        return false; // break
+        return false;
       }
     });
 
-    results.push({
-      logNo,
-      title: text.replace(/\s+/g, ' ').substring(0, 200),
-      date,
-      blogId,
-      blogName,
-    });
+    results.push({ logNo, title: text.replace(/\s+/g, ' ').substring(0, 200), date, blogId, blogName });
   });
 
   return results;
 }
 
 async function searchBlogPosts(query, maxResults = 70) {
-  const results = [];
-  const maxPages = 8; // 페이지당 ~10개 신규, 8페이지 = ~80개
-
   console.log('[검색] "' + query + '" 검색 중...');
+
+  // 1단계: 일반 검색 → 관련도순 순서 확보 (blogId/logNo/title만)
+  let orderList = [];
+  try {
+    const url = 'https://search.naver.com/search.naver?where=blog&query='
+      + encodeURIComponent(query) + '&sm=tab_opt&start=1';
+    const res = await httpClient.get(url, { headers: SEARCH_HEADERS });
+    orderList = parseOrderOnly(res.data);
+    console.log('[검색] 관련도순: ' + orderList.length + '개');
+  } catch (err) {
+    console.error('[검색 에러] 관련도순:', err.message);
+  }
+
+  // 2단계: ssc=tab.blog.all → 전체 메타데이터(블로그명, 날짜) + 추가 결과
+  const metadataMap = new Map(); // key → {full post data}
+  const sscOrder = []; // ssc에서만 나온 추가 결과 순서
+  const maxPages = 8;
 
   for (let page = 0; page < maxPages; page++) {
     const start = page * 10 + 1;
@@ -91,37 +125,59 @@ async function searchBlogPosts(query, maxResults = 70) {
       + encodeURIComponent(query) + '&start=' + start;
 
     try {
-      const res = await httpClient.get(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://search.naver.com/',
-        },
-      });
+      const res = await httpClient.get(url, { headers: SEARCH_HEADERS });
+      const existingKeys = new Set(metadataMap.keys());
+      const posts = parseFullMetadata(res.data, existingKeys);
 
-      const posts = parseSearchPage(res.data);
-      if (posts.length === 0) {
-        console.log('[검색] 페이지 ' + (page + 1) + ': 결과 없음, 종료');
+      if (posts.length === 0 && page > 0) {
+        console.log('[검색] 페이지 ' + (page + 1) + ': 신규 없음, 종료');
         break;
       }
 
-      // 중복 제거
-      const existingKeys = new Set(results.map(r => r.blogId + '_' + r.logNo));
-      const newPosts = posts.filter(p => !existingKeys.has(p.blogId + '_' + p.logNo));
-      results.push(...newPosts);
-      console.log('[검색] 페이지 ' + (page + 1) + ': ' + posts.length + '개 중 ' + newPosts.length + '개 신규 (총 ' + results.length + '개)');
-
-      if (results.length >= maxResults) break;
-      if (newPosts.length === 0) {
-        console.log('[검색] 신규 결과 없음, 종료');
-        break;
+      for (const p of posts) {
+        const key = p.blogId + '_' + p.logNo;
+        metadataMap.set(key, p);
+        sscOrder.push(key);
       }
-      if (page < maxPages - 1) await sleep(1000);
+      console.log('[검색] 페이지 ' + (page + 1) + ': ' + posts.length + '개 (메타데이터 총 ' + metadataMap.size + '개)');
+
+      if (metadataMap.size >= maxResults + orderList.length) break;
+      await sleep(1000);
     } catch (err) {
       console.error('[검색 에러] 페이지 ' + (page + 1) + ':', err.message);
       break;
     }
   }
 
+  // 3단계: 병합 — 관련도순 먼저, 이후 ssc 추가분
+  const results = [];
+  const usedKeys = new Set();
+
+  // 관련도순 결과에 ssc 메타데이터 병합
+  for (const item of orderList) {
+    const key = item.blogId + '_' + item.logNo;
+    if (usedKeys.has(key)) continue;
+    usedKeys.add(key);
+
+    const meta = metadataMap.get(key);
+    results.push(meta || {
+      logNo: item.logNo,
+      title: item.title,
+      date: new Date(),
+      blogId: item.blogId,
+      blogName: item.blogId,
+    });
+  }
+
+  // ssc에서만 나온 추가 결과
+  for (const key of sscOrder) {
+    if (usedKeys.has(key)) continue;
+    usedKeys.add(key);
+    results.push(metadataMap.get(key));
+    if (results.length >= maxResults) break;
+  }
+
+  console.log('[검색] 최종: 관련도순 ' + Math.min(orderList.length, results.length) + '개 + 추가 ' + Math.max(0, results.length - orderList.length) + '개 = ' + results.length + '개');
   return results.slice(0, maxResults);
 }
 
